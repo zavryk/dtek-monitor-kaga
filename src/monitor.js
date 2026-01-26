@@ -224,20 +224,16 @@ import { loadLastMessageMap, saveLastMessageMap } from "./helpers.js"
 
 async function run() {
   const info = await getInfo()
-  const isOutage = checkIsOutage(info)
-  if (!isOutage) return
 
-  const isScheduled = checkIsScheduled(info)
-  if (isScheduled) return
+  if (!checkIsOutage(info)) return
+  if (checkIsScheduled(info)) return
 
   const { text, period } = generateMessage(info)
-
   const key = `${CITY}|${STREET}|${HOUSE}`
 
   const map = loadLastMessageMap()
   const last = map[key] || {}
 
-  // ✅ дедуп по period (по об’єкту)
   if (last.period === period) {
     console.log("🟡 Unchanged period for", key, "- skip")
     return
@@ -245,14 +241,14 @@ async function run() {
 
   const disable_notification = isQuietHoursKyiv()
 
-  // 1) спочатку в chat2 (головний)
+  // 1) chat2 (основний для дедуп/історії)
   await sendMessage({
     chat_id: TELEGRAM_CHAT_ID2,
     text,
     disable_notification,
   })
 
-  // 2) потім в chat1 + thread (якщо thread є)
+  // 2) chat1 (+ thread якщо є)
   await sendMessage({
     chat_id: TELEGRAM_CHAT_ID,
     thread_id: TELEGRAM_THREAD_ID || null,
@@ -260,14 +256,11 @@ async function run() {
     disable_notification,
   })
 
-  // ✅ зберігаємо period саме після успішної відправки
-  map[key] = {
-    period,
-    updated_at: new Date().toISOString(),
-  }
+  map[key] = { period, updated_at: new Date().toISOString() }
   saveLastMessageMap(map)
 
   console.log("🟢 Sent to both chats. Saved state for", key)
 }
+
 
 run().catch((error) => console.error(error.message))
