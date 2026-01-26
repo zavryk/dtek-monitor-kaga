@@ -108,11 +108,8 @@ function generateMessage(info) {
   const { updateTimestamp } = info || {}
 
   const reason = capitalize(sub_type).replace(/екстренні/gi, "Екстрені")
-  const begin = start_date.split(" ")[0]
-  const end = end_date.split(" ")[0]
   const [beginTime, beginDate] = start_date.split(" ")
   const [endTime, endDate] = end_date.split(" ")
-  const sameDay = beginDate === endDate
   const period = `${beginTime} ${beginDate} — ${endTime} ${endDate}`
   const text = [
     "🚨🚨 <b>Екстрене відключення:</b>",
@@ -127,13 +124,25 @@ function generateMessage(info) {
   return { text, period }
 }
 
+function isQuietHoursKyiv() {
+  const now = new Date()
+
+  const hh = Number(now.toLocaleString("en-US", { timeZone: "Europe/Kyiv", hour: "2-digit", hour12: false }).trim())
+  const mm = Number(now.toLocaleString("en-US", { timeZone: "Europe/Kyiv", minute: "2-digit" }).trim())
+
+
+  const minutes = hh * 60 + mm
+  return minutes >= 0 && minutes < 390 // 00:00..06:29 (06:30 = 390 вже НЕ тихо)
+}
+
+
 async function sendNotification(text, period) {
   if (!TELEGRAM_BOT_TOKEN) throw Error("❌ Missing telegram bot token.")
   if (!TELEGRAM_CHAT_ID) throw Error("❌ Missing telegram chat id.")
 
   const lastMessage = loadLastMessage() || {}
 
-  // ✅ якщо період не змінився — не редагуємо і не комітимо
+  // ✅ якщо період не змінився — нічого не робимо
   if (lastMessage.period === period) {
     console.log("🟡 Period unchanged. Skip sending.")
     return
@@ -141,11 +150,11 @@ async function sendNotification(text, period) {
 
   console.log("🌀 Sending notification...")
 
+  const disable_notification = isQuietHoursKyiv()
+  
   try {
-    const method = lastMessage.message_id ? "editMessageText" : "sendMessage"
-
     const response = await fetch(
-      `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/${method}`,
+      `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -153,13 +162,16 @@ async function sendNotification(text, period) {
           chat_id: TELEGRAM_CHAT_ID,
           text,
           parse_mode: "HTML",
-          ...(lastMessage.message_id ? { message_id: lastMessage.message_id } : {}),
+          disable_notification,
         }),
       }
     )
 
     const data = await response.json()
-
+    if (!response.ok || data.ok === false) {
+      throw Error(`Telegram API error: ${data.description || response.status}`)
+    }
+    
     saveLastMessage({
       message_id: data.result.message_id,
       date: data.result.date,
@@ -167,12 +179,16 @@ async function sendNotification(text, period) {
       period,
     })
 
-    console.log("🟢 Notification sent.")
+  
+    console.log(
+      disable_notification ? "🟢 Notification sent (silent)." : "🟢 Notification sent."
+    )
   } catch (error) {
     console.log("🔴 Notification not sent.", error.message)
     deleteLastMessage()
   }
 }
+
 
 
 async function run() {
@@ -183,8 +199,9 @@ async function run() {
 
   const isScheduled = checkIsScheduled(info)
   if (isOutage && !isScheduled) {
-    const message = generateMessage(info)
-    await sendNotification(message)
+    const { text, period } = generateMessage(info)
+    await sendNotification(text, period)
+
   }
 }
 
