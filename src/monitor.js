@@ -114,9 +114,7 @@ function generateMessage(info) {
   const [endTime, endDate] = end_date.split(" ")
   const sameDay = beginDate === endDate
   const period = `${beginTime} ${beginDate} — ${endTime} ${endDate}`
-   
-
-  return [
+  const text = [
     "🚨🚨 <b>Екстрене відключення:</b>",
     `<blockquote><code>🌑 ${beginTime} ${beginDate}\n🌕 ${endTime} ${endDate}</code></blockquote>`,
     "",
@@ -125,35 +123,49 @@ function generateMessage(info) {
     `🔄 <b>Оновлено: </b> <i>${updateTimestamp}</i>`,
     `🔗 <b>Джерело: </b><a href="https://www.dtek-kem.com.ua/ua/shutdowns">ДТЕК КЕМ</a>`
   ].join("\n")
+  
+  return { text, period }
 }
 
-async function sendNotification(message) {
-  if (!TELEGRAM_BOT_TOKEN)
-    throw Error("❌ Missing telegram bot token or chat id.")
+async function sendNotification(text, period) {
+  if (!TELEGRAM_BOT_TOKEN) throw Error("❌ Missing telegram bot token.")
   if (!TELEGRAM_CHAT_ID) throw Error("❌ Missing telegram chat id.")
+
+  const lastMessage = loadLastMessage() || {}
+
+  // ✅ якщо період не змінився — не редагуємо і не комітимо
+  if (lastMessage.period === period) {
+    console.log("🟡 Period unchanged. Skip sending.")
+    return
+  }
 
   console.log("🌀 Sending notification...")
 
-  const lastMessage = loadLastMessage() || {}
   try {
+    const method = lastMessage.message_id ? "editMessageText" : "sendMessage"
+
     const response = await fetch(
-      `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/${
-        lastMessage.message_id ? "editMessageText" : "sendMessage"
-      }`,
+      `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/${method}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: TELEGRAM_CHAT_ID,
-          text: message,
+          text,
           parse_mode: "HTML",
-          message_id: lastMessage.message_id ?? undefined,
+          ...(lastMessage.message_id ? { message_id: lastMessage.message_id } : {}),
         }),
       }
     )
 
     const data = await response.json()
-    saveLastMessage(data.result)
+
+    saveLastMessage({
+      message_id: data.result.message_id,
+      date: data.result.date,
+      text,
+      period,
+    })
 
     console.log("🟢 Notification sent.")
   } catch (error) {
@@ -161,6 +173,7 @@ async function sendNotification(message) {
     deleteLastMessage()
   }
 }
+
 
 async function run() {
   const info = await getInfo()
