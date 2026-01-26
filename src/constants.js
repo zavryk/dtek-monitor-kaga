@@ -1,6 +1,6 @@
 import path from "node:path"
 
-export const { TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, TELEGRAM_THREAD_ID,STREET, HOUSE, CITY } =
+export const { TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, TELEGRAM_THREAD_ID, TELEGRAM_CHAT_ID2, STREET, HOUSE, CITY } =
   process.env
 
 export const SHUTDOWNS_PAGE = "https://www.dtek-krem.com.ua/ua/shutdowns"
