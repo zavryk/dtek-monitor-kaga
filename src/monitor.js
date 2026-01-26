@@ -4,6 +4,7 @@ import {
   TELEGRAM_BOT_TOKEN,
   TELEGRAM_CHAT_ID,
   TELEGRAM_THREAD_ID,
+  TELEGRAM_CHAT_ID2,
   CITY,
   STREET,
   HOUSE,
@@ -11,11 +12,9 @@ import {
 } from "./constants.js"
 
 import {
-  capitalize,
-  deleteLastMessage,
-  getCurrentTime,
-  loadLastMessage,
-  saveLastMessage,
+  capitalize, 
+  loadLastMessageMap, 
+  saveLastMessageMap,
 } from "./helpers.js"
 
 async function getInfo() {
@@ -24,9 +23,7 @@ async function getInfo() {
   const browser = await chromium.launch({ headless: true })
   const browserPage = await browser.newPage()
 
-  const key = `${CITY}|${STREET}|${HOUSE}`
-
-
+  
   try {
     await browserPage.goto(SHUTDOWNS_PAGE, {
       waitUntil: "load",
