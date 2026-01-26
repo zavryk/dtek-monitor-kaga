@@ -122,8 +122,8 @@ function generateMessage(info) {
     "",
     `⚠️ <b>Причина: </b><i>${reason}.</i>`,
     "",
-    `🔄 <b>Час оновлення: </b> <i>${updateTimestamp}</i>`,
-    `Джерело: <a href="https://www.dtek-kem.com.ua/ua/shutdowns">ДТЕК КЕМ</a>`
+    `🔄 <b>Оновлено: </b> <i>${updateTimestamp}</i>`,
+    `🔗 <b>Джерело: </b><a href="https://www.dtek-kem.com.ua/ua/shutdowns">ДТЕК КЕМ</a>`
   ].join("\n")
 }
 
