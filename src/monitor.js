@@ -170,60 +170,6 @@ async function sendMessage({ chat_id, thread_id, text, disable_notification }) {
 }
 
 
-async function sendNotification(text, period) {
-  if (!TELEGRAM_BOT_TOKEN) throw Error("❌ Missing telegram bot token.")
-  if (!TELEGRAM_CHAT_ID) throw Error("❌ Missing telegram chat id.")
-
-  const lastMessage = loadLastMessage() || {}
-
-  // ✅ якщо період не змінився — нічого не робимо
-  if (lastMessage.period === period) {
-    console.log("🟡 Period unchanged. Skip sending.")
-    return
-  }
-
-  console.log("🌀 Sending notification...")
-
-  const disable_notification = isQuietHoursKyiv()
-  
-  try {
-    const response = await fetch(
-      `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: TELEGRAM_CHAT_ID,
-          text,
-          parse_mode: "HTML",
-          disable_notification,
-        }),
-      }
-    )
-
-    const data = await response.json()
-    if (!response.ok || data.ok === false) {
-      throw Error(`Telegram API error: ${data.description || response.status}`)
-    }
-    
-    saveLastMessage({
-      message_id: data.result.message_id,
-      date: data.result.date,
-      text,
-      period,
-    })
-
-  
-    console.log(
-      disable_notification ? "🟢 Notification sent (silent)." : "🟢 Notification sent."
-    )
-  } catch (error) {
-    console.log("🔴 Notification not sent.", error.message)
-    deleteLastMessage()
-  }
-}
-
-import { loadLastMessageMap, saveLastMessageMap } from "./helpers.js"
 
 async function run() {
   const info = await getInfo()
