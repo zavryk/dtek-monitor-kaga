@@ -24,6 +24,9 @@ async function getInfo() {
   const browser = await chromium.launch({ headless: true })
   const browserPage = await browser.newPage()
 
+  const key = `${CITY}|${STREET}|${HOUSE}`
+
+
   try {
     await browserPage.goto(SHUTDOWNS_PAGE, {
       waitUntil: "load",
@@ -140,6 +143,32 @@ function isQuietHoursKyiv() {
   return minutes >= 0 && minutes < 390 // 00:00..06:29 (06:30 = 390 вже НЕ тихо)
 }
 
+async function sendMessage({ chat_id, thread_id, text, disable_notification }) {
+  const payload = {
+    chat_id,
+    text,
+    parse_mode: "HTML",
+    disable_notification,
+  }
+
+  if (thread_id) payload.message_thread_id = Number(thread_id)
+
+  const resp = await fetch(
+    `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }
+  )
+
+  const data = await resp.json()
+  if (!resp.ok || data.ok === false) {
+    throw Error(`Telegram API error: ${data.description || resp.status}`)
+  }
+  return data.result
+}
+
 
 async function sendNotification(text, period) {
   if (!TELEGRAM_BOT_TOKEN) throw Error("❌ Missing telegram bot token.")
@@ -194,20 +223,54 @@ async function sendNotification(text, period) {
   }
 }
 
-
+import { loadLastMessageMap, saveLastMessageMap } from "./helpers.js"
 
 async function run() {
   const info = await getInfo()
   const isOutage = checkIsOutage(info)
-
   if (!isOutage) return
 
   const isScheduled = checkIsScheduled(info)
-  if (isOutage && !isScheduled) {
-    const { text, period } = generateMessage(info)
-    await sendNotification(text, period)
+  if (isScheduled) return
 
+  const { text, period } = generateMessage(info)
+
+  const key = `${CITY}|${STREET}|${HOUSE}`
+
+  const map = loadLastMessageMap()
+  const last = map[key] || {}
+
+  // ✅ дедуп по period (по об’єкту)
+  if (last.period === period) {
+    console.log("🟡 Unchanged period for", key, "- skip")
+    return
   }
+
+  const disable_notification = isQuietHoursKyiv()
+
+  // 1) спочатку в chat2 (головний)
+  await sendMessage({
+    chat_id: TELEGRAM_CHAT_ID2,
+    text,
+    disable_notification,
+  })
+
+  // 2) потім в chat1 + thread (якщо thread є)
+  await sendMessage({
+    chat_id: TELEGRAM_CHAT_ID,
+    thread_id: TELEGRAM_THREAD_ID || null,
+    text,
+    disable_notification,
+  })
+
+  // ✅ зберігаємо period саме після успішної відправки
+  map[key] = {
+    period,
+    updated_at: new Date().toISOString(),
+  }
+  saveLastMessageMap(map)
+
+  console.log("🟢 Sent to both chats. Saved state for", key)
 }
 
 run().catch((error) => console.error(error.message))
