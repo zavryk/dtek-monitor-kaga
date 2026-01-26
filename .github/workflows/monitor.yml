@@ -23,7 +23,7 @@ on:
         description: "House key/index"
         required: true
         type: string
-      City:
+      сity:
         description: "City"
         required: true
         type: string  
