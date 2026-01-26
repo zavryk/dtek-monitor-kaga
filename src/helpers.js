@@ -43,6 +43,8 @@ export function saveLastMessage({ date, message_id, text, period } = {}) {
         date,
         text,
         period,
+        chat_id,
+        thread_id,
       },
       null,
       2
