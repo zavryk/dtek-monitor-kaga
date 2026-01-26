@@ -113,6 +113,7 @@ function generateMessage(info) {
   const period = `${beginTime} ${beginDate} — ${endTime} ${endDate}`
   const text = [
     "🚨🚨 <b>Екстрене відключення:</b>",
+    "",
     `<blockquote><code>🌑 ${beginTime} ${beginDate}\n🌕 ${endTime} ${endDate}</code></blockquote>`,
     "",
     `⚠️ <b>Причина: </b><i>${reason}.</i>`,
