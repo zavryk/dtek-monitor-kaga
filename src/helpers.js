@@ -23,9 +23,10 @@ export function saveLastMessageMap(map) {
 }
 
 
-export function deleteLastMessage() {
-  fs.rmdirSync(path.dirname(LAST_MESSAGE_FILE), { recursive: true })
+export function deleteLastMessageFile() {
+  if (fs.existsSync(LAST_MESSAGE_FILE)) fs.unlinkSync(LAST_MESSAGE_FILE)
 }
+
 
 export function getCurrentTime() {
   const now = new Date()
