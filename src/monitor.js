@@ -113,17 +113,20 @@ function generateMessage(info) {
 
   const reason = capitalize(sub_type).replace(/екстренні/gi, "Екстрені")
   const [beginTime, beginDate] = start_date.split(" ")
+  const place = `<b><u>${STREET}</u></b>`
   const [endTime, endDate] = end_date.split(" ")
   const period = `${beginTime} ${beginDate} — ${endTime} ${endDate}`
   const text = [
     "🚨🚨 <b>Екстрене відключення:</b>",
+    "",
+    `📍 ${place}`,
     `<blockquote><code>🌑 ${beginTime} ${beginDate}\n🌕 ${endTime} ${endDate}</code></blockquote>`,
     "",
     `⚠️ <b>Причина: </b><i>${reason}.</i>`,
     "",
     `‼️ <b>Терміни орієнтовні</b>`,
     `🔄 <b>Оновлено: </b> <i>${updateTimestamp}</i>`,
-    `🔗 <b>Джерело: </b><a href="https://www.dtek-kem.com.ua/ua/shutdowns">ДТЕК КЕМ</a>`
+    `🔗 <b>Джерело: </b><a href="https://www.dtek-krem.com.ua/ua/shutdowns">ДТЕК КРЕМ</a>`
   ].join("\n")
   
   return { text, period }
