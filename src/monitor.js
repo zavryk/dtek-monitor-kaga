@@ -116,18 +116,20 @@ function generateMessage(info) {
 
   const period = sameDay
     ? `${beginTime} — ${endTime} ${endDate}`
-    : `${beginTime} ${beginDate} — ${endTime} ${endDate}`
+    : `${beginTime} ${beginDate} — /n ${endTime} ${endDate}`
 
  
 
   return [
-    "🚨🚨 <b>Екстрене (аварійне) відключення:</b>",
+    "🚨🚨 <b>Екстрене відключення:</b>",
     `<blockquote><code>🌚 ${period}</code></blockquote>`,
+    `Початок: <blockquote><code>🌚 ${beginTime} ${beginDate}</code></blockquote>`,
+    `Кінець:  <blockquote><code>🌞 ${endTime} ${endDate}</code></blockquote>`,
     "",
     `⚠️ <b>Причина: </b><i>${reason}.</i>`,
     "",
     `🔄 <b>Час оновлення: </b> <i>${updateTimestamp}</i>`,
-    `Джерело: <a href="https://www.dtek-kem.com.ua/ua/shutdowns">ДТЕК Київські електромережі</a>`
+    `Джерело: <a href="https://www.dtek-kem.com.ua/ua/shutdowns">ДТЕК КЕМ</a>`
   ].join("\n")
 }
 
