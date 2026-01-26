@@ -8,49 +8,18 @@ export function capitalize(str) {
   return str[0].toUpperCase() + str.slice(1).toLowerCase()
 }
 
-export function loadLastMessage() {
-  if (!fs.existsSync(LAST_MESSAGE_FILE)) return null
-
-  const lastMessage = JSON.parse(
-    fs.readFileSync(LAST_MESSAGE_FILE, "utf8").trim()
-  )
-
-  if (lastMessage?.date) {
-    const messageDay = new Date(lastMessage.date * 1000).toLocaleDateString(
-      "en-CA",
-      { timeZone: "Europe/Kyiv" }
-    )
-    const today = new Date().toLocaleDateString("en-CA", {
-      timeZone: "Europe/Kyiv",
-    })
-
-    if (messageDay < today) {
-      deleteLastMessage()
-      return null
-    }
+export function loadLastMessageMap() {
+  if (!fs.existsSync(LAST_MESSAGE_FILE)) return {}
+  try {
+    return JSON.parse(fs.readFileSync(LAST_MESSAGE_FILE, "utf8").trim() || "{}")
+  } catch {
+    return {}
   }
-
-  return lastMessage
 }
 
-export function saveLastMessage({ date, message_id, text, period } = {}) {
+export function saveLastMessageMap(map) {
   fs.mkdirSync(path.dirname(LAST_MESSAGE_FILE), { recursive: true })
-  fs.writeFileSync(
-    LAST_MESSAGE_FILE,
-    JSON.stringify(
-      {
-        message_id,
-        date,
-        text,
-        period,
-        chat_id,
-        thread_id,
-      },
-      null,
-      2
-    ),
-    "utf8"
-  )
+  fs.writeFileSync(LAST_MESSAGE_FILE, JSON.stringify(map, null, 2), "utf8")
 }
 
 
