@@ -1,30 +1,30 @@
 name: Run power outages monitor
 
 on:
-   workflow_dispatch:
+  workflow_dispatch:
     inputs:
       telegram_chat_id:
-        description: "Telegram chat id"
+        description: "Telegram chat id (chat 1)"
         required: true
         type: string
       telegram_thread_id:
-          description: "Telegram thread id"
-          required: true
-          type: string 
+        description: "Telegram thread id (for chat 1; optional)"
+        required: false
+        type: string
       telegram_chat_id2:
-        description: "Telegram chat id2"
+        description: "Telegram chat id2 (chat 2)"
         required: true
-        type: string    
+        type: string
+      city:
+        description: "City"
+        required: true
+        type: string
       street:
         description: "Street"
         required: true
         type: string
       house:
         description: "House key/index"
-        required: true
-        type: string
-      сity:
-        description: "City"
         required: true
         type: string  
 
