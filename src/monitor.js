@@ -112,13 +112,13 @@ function generateMessage(info) {
   const end = end_date.split(" ")[0]
 
   return [
-    "⚡️ <b>Зафіксовано відключення:</b>",
-    `🪫 <code>${begin} — ${end}</code>`,
+    "🚨 <b>Отримано інформацію про знеструмлення:</b>",
+    `🪫 <b>Час: </b><code>${begin} — ${end}</code>`,
     "",
-    `⚠️ <i>${reason}.</i>`,
+    `⚠️<b>Причина: </b><i>${reason}.</i>`,
     "\n",
-    `🔄 <i>${updateTimestamp}</i>`,
-    `💬 <i>${getCurrentTime()}</i>`,
+    `🔄 <b>Час оновлення інформації: </b> <i>${updateTimestamp}</i>`,
+    `Джерело : https://www.dtek-kem.com.ua/ua/shutdowns`,
   ].join("\n")
 }
 
