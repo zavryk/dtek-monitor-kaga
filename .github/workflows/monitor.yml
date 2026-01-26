@@ -1,9 +1,28 @@
 name: Run power outages monitor
 
 on:
-  #schedule:
-  #  - cron: "*/10 * * * *"
-  workflow_dispatch:
+   workflow_dispatch:
+    inputs:
+      telegram_chat_id:
+        description: "Telegram chat id"
+        required: true
+        type: string
+      telegram_thread_id:
+          description: "Telegram thread id"
+          required: true
+          type: string 
+      street:
+        description: "Street"
+        required: true
+        type: string
+      house:
+        description: "House key/index"
+        required: true
+        type: string
+      City:
+        description: "City"
+        required: true
+        type: string  
 
 jobs:
   monitor:
@@ -30,6 +49,7 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_ID }}
           CITY: ${{ secrets.CITY }}
           STREET: ${{ secrets.STREET }}
           HOUSE: ${{ secrets.HOUSE }}
