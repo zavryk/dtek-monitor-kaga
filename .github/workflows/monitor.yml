@@ -11,6 +11,10 @@ on:
           description: "Telegram thread id"
           required: true
           type: string 
+      telegram_chat_id2:
+        description: "Telegram chat id2"
+        required: true
+        type: string    
       street:
         description: "Street"
         required: true
@@ -48,11 +52,12 @@ jobs:
       - name: Run monitoring script
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_ID }}
-          CITY: ${{ secrets.CITY }}
-          STREET: ${{ secrets.STREET }}
-          HOUSE: ${{ secrets.HOUSE }}
+          TELEGRAM_CHAT_ID: ${{ inputs.telegram_chat_id }}
+          TELEGRAM_CHAT_ID2: ${{ inputs.telegram_chat_id2 }}
+          TELEGRAM_THREAD_ID: ${{ inputs.telegram_thread_id }}
+          CITY: ${{ inputs.city }}
+          STREET: ${{ inputs.street }}
+          HOUSE: ${{ inputs.house }}
         run: node ./src/monitor.js
 
       - name: Commit updated artifacts
