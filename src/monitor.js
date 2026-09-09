@@ -1,215 +1,122 @@
-import { chromium } from "playwright"
-
 import {
-  TELEGRAM_BOT_TOKEN,
-  TELEGRAM_CHAT_ID,
-  TELEGRAM_THREAD_ID,
-  TELEGRAM_CHAT_ID2,
-  CITY,
-  STREET,
-  HOUSE,
-  SHUTDOWNS_PAGE,
-} from "./constants.js"
-
+  FAIL_ALERT_AFTER,
+  TELEGRAM_ALERT_CHAT_ID,
+  loadTargets,
+} from "./config.js"
+import { fetchStreetInfo, readHouse, withBrowser } from "./dtek.js"
 import {
-  capitalize, 
-  loadLastMessageMap, 
-  saveLastMessageMap,
-} from "./helpers.js"
+  failureMessage,
+  outageMessage,
+  periodOf,
+  recoveryMessage,
+} from "./messages.js"
+import { loadState, saveState, targetState } from "./state.js"
+import { isQuietHoursKyiv, sendMessage } from "./telegram.js"
 
-async function getInfo() {
-  console.log("🌀 Getting info...")
-
-  const browser = await chromium.launch({ headless: true })
-  const browserPage = await browser.newPage()
-
-  
+async function alert(text) {
+  if (!TELEGRAM_ALERT_CHAT_ID) return
   try {
-    await browserPage.goto(SHUTDOWNS_PAGE, {
-      waitUntil: "load",
-    })
-
-    const csrfTokenTag = await browserPage.waitForSelector(
-      'meta[name="csrf-token"]',
-      { state: "attached" }
-    )
-    const csrfToken = await csrfTokenTag.getAttribute("content")
-
-    const info = await browserPage.evaluate(
-      async ({ CITY, STREET, csrfToken }) => {
-        const formData = new URLSearchParams()
-        formData.append("method", "getHomeNum")
-        formData.append("data[0][name]", "city")
-        formData.append("data[0][value]", CITY)
-        formData.append("data[1][name]", "street")
-        formData.append("data[1][value]", STREET)
-        formData.append("data[2][name]", "updateFact")
-        formData.append("data[2][value]", new Date().toLocaleString("uk-UA"))
-
-        const response = await fetch("/ua/ajax", {
-          method: "POST",
-          headers: {
-            "x-requested-with": "XMLHttpRequest",
-            "x-csrf-token": csrfToken,
-          },
-          body: formData,
-        })
-        return await response.json()
-      },
-      { CITY, STREET, csrfToken }
-    )
-
-    console.log("✅ Getting info finished.")
-    return info
+    await sendMessage({ chat_id: TELEGRAM_ALERT_CHAT_ID, text, silent: true })
   } catch (error) {
-    throw Error(`❌ Getting info failed: ${error.message}`)
-  } finally {
-    await browser.close()
+    // Скарга на поломку, яка сама впала, не має ламати прогін: дані
+    // важливіші за розповідь про них.
+    console.error("Не вдалось надіслати службове повідомлення:", error.message)
   }
 }
 
-function checkIsOutage(info) {
-  console.log("🌀 Checking power outage...")
+async function notifyOutage(target, record, updateTimestamp) {
+  const text = outageMessage(target, record, updateTimestamp)
+  const silent = isQuietHoursKyiv()
+  for (const chat of target.chats) {
+    await sendMessage({
+      chat_id: chat.chat_id,
+      thread_id: chat.thread_id,
+      text,
+      silent,
+    })
+  }
+}
 
-  if (!info?.data) {
-    throw Error("❌ Power outage info missed.")
+async function handleTarget(browser, target, state) {
+  const previous = targetState(state, target.id)
+  const info = await fetchStreetInfo(browser, target)
+  const house = readHouse(info, target)
+
+  if (house.kind === "missing") {
+    // Не відключення й не збій мережі, а розбіжність конфігу з
+    // довідником. Кидаємо як помилку цілі -- її видно і в коді виходу,
+    // і в одному службовому повідомленні.
+    throw Error(
+      `Будинок "${target.house}" відсутній на ${target.street}: ` +
+        `є ${Object.keys(info.data).slice(0, 12).join(", ") || "нічого"}`
+    )
   }
 
-  const { sub_type, start_date, end_date, type } = info?.data?.[HOUSE] || {}
-  const isOutageDetected =
-    sub_type !== "" || start_date !== "" || end_date !== "" || type !== ""
-
-  isOutageDetected
-    ? console.log("🚨 Power outage detected!")
-    : console.log("⚡️ No power outage!")
-
-  return isOutageDetected
-}
-
-function checkIsScheduled(info) {
-  console.log("🌀 Checking whether power outage scheduled...")
-
-  if (!info?.data) {
-    throw Error("❌ Power outage info missed.")
-  }
-
-  const { sub_type } = info?.data?.[HOUSE] || {}
-  const isScheduled =
-    !sub_type.toLowerCase().includes("авар") &&
-    !sub_type.toLowerCase().includes("екст")
-
-  isScheduled
-    ? console.log("🗓️ Power outage scheduled!")
-    : console.log("⚠️ Power outage not scheduled!")
-
-  return isScheduled
-}
-
-function generateMessage(info) {
-  console.log("🌀 Generating message...")
-
-  const { sub_type, start_date, end_date } = info?.data?.[HOUSE] || {}
-  const { updateTimestamp } = info || {}
-
-  const reason = capitalize(sub_type).replace(/екстренні/gi, "Екстрені")
-  const [beginTime, beginDate] = start_date.split(" ")
-  const place = `<b><u>${STREET}</u></b>`
-  const [endTime, endDate] = end_date.split(" ")
-  const period = `${beginTime} ${beginDate} — ${endTime} ${endDate}`
-  const text = [
-    "🚨🚨 <b>Екстрене відключення:</b>",
-    "",
-    `📍 ${place}`,
-    `<blockquote><code>🌑 ${beginTime} ${beginDate}\n🌕 ${endTime} ${endDate}</code></blockquote>`,
-    "",
-    `⚠️ <b>Причина: </b><i>${reason}.</i>`,
-    "",
-    `‼️ <b>Терміни орієнтовні</b>`,
-    `🔄 <b>Оновлено: </b> <i>${updateTimestamp}</i>`,
-    `🔗 <b>Джерело: </b><a href="https://www.dtek-krem.com.ua/ua/shutdowns">ДТЕК КРЕМ</a>`
-  ].join("\n")
-  
-  return { text, period }
-}
-
-function isQuietHoursKyiv() {
-  const now = new Date()
-
-  const hh = Number(now.toLocaleString("en-US", { timeZone: "Europe/Kyiv", hour: "2-digit", hour12: false }).trim())
-  const mm = Number(now.toLocaleString("en-US", { timeZone: "Europe/Kyiv", minute: "2-digit" }).trim())
-
-
-  const minutes = hh * 60 + mm
-  return minutes >= 0 && minutes < 390 // 00:00..06:29 (06:30 = 390 вже НЕ тихо)
-}
-
-async function sendMessage({ chat_id, thread_id, text, disable_notification }) {
-  const payload = {
-    chat_id,
-    text,
-    parse_mode: "HTML",
-    disable_notification,
-  }
-
-  if (thread_id) payload.message_thread_id = Number(thread_id)
-
-  const resp = await fetch(
-    `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+  if (house.kind === "outage" && house.emergency) {
+    const period = periodOf(house.record)
+    if (previous.period === period) {
+      console.log(`🟡 ${target.id}: період не змінився`)
+    } else {
+      await notifyOutage(target, house.record, info.updateTimestamp)
+      console.log(`🚨 ${target.id}: надіслано, ${period}`)
     }
-  )
-
-  const data = await resp.json()
-  if (!resp.ok || data.ok === false) {
-    throw Error(`Telegram API error: ${data.description || resp.status}`)
+    return { period, updated_at: new Date().toISOString() }
   }
-  return data.result
+
+  // Планове відключення або його відсутність. Повідомлення про
+  // завершення навмисно немає: заживлення однаково триває невідомо
+  // скільки, і "завершилось" о 23:35 читалось як обіцянка.
+  if (previous.period) console.log(`⚪ ${target.id}: аварійного немає`)
+  return { period: null, updated_at: new Date().toISOString() }
 }
-
-
 
 async function run() {
-  const info = await getInfo()
+  const targets = loadTargets()
+  const state = loadState()
+  let failures = 0
 
-  if (!checkIsOutage(info)) return
-  if (checkIsScheduled(info)) return
+  await withBrowser(async (browser) => {
+    for (const target of targets) {
+      const previous = targetState(state, target.id)
+      try {
+        const next = await handleTarget(browser, target, state)
 
-  const { text, period } = generateMessage(info)
-  const key = `${CITY}|${STREET}|${HOUSE}`
+        if (previous.fail_streak >= FAIL_ALERT_AFTER) {
+          const minutes = Math.round(
+            (Date.now() - new Date(previous.failing_since).getTime()) / 60000
+          )
+          await alert(recoveryMessage(target, previous.fail_streak, minutes))
+        }
+        state[target.id] = { ...next, fail_streak: 0, failing_since: null }
+      } catch (error) {
+        failures += 1
+        const streak = (previous.fail_streak || 0) + 1
+        const failing_since = previous.failing_since || new Date().toISOString()
+        console.error(`❌ ${target.id}: ${error.message}`)
 
-  const map = loadLastMessageMap()
-  const last = map[key] || {}
+        // Одна скарга на перехід, а не на кожну спробу. Одна невдача --
+        // це мережа; FAIL_ALERT_AFTER поспіль -- це поломка, про яку
+        // варто знати.
+        if (streak === FAIL_ALERT_AFTER) {
+          await alert(failureMessage(target, streak, error.message))
+        }
+        state[target.id] = { ...previous, fail_streak: streak, failing_since }
+      }
+    }
+  })
 
-  if (last.period === period) {
-    console.log("🟡 Unchanged period for", key, "- skip")
-    return
+  saveState(state)
+
+  if (failures > 0) {
+    // Червоний прогін -- це те, що GitHub уміє показати сам: у списку
+    // Actions і листом. Стара версія ковтала помилку в catch і завжди
+    // виходила нулем, тож зламаний монітор виглядав здоровим.
+    process.exitCode = 1
+    console.error(`Цілей із помилкою: ${failures} з ${targets.length}`)
   }
-
-  const disable_notification = isQuietHoursKyiv()
-
-  // 1) chat2 (основний для дедуп/історії)
-  await sendMessage({
-    chat_id: TELEGRAM_CHAT_ID2,
-    text,
-    disable_notification,
-  })
-
-  // 2) chat1 (+ thread якщо є)
-  await sendMessage({
-    chat_id: TELEGRAM_CHAT_ID,
-    thread_id: TELEGRAM_THREAD_ID || null,
-    text,
-    disable_notification,
-  })
-
-  map[key] = { period, updated_at: new Date().toISOString() }
-  saveLastMessageMap(map)
-
-  console.log("🟢 Sent to both chats. Saved state for", key)
 }
 
-
-run().catch((error) => console.error(error.message))
+run().catch((error) => {
+  console.error("Фатально:", error.message)
+  process.exitCode = 1
+})

@@ -1,7 +1,7 @@
 {
-  "name": "dtek-monitor",
-  "version": "1.1.1",
-  "description": "DTEK power outages monitor",
+  "name": "dtek-monitor-kaga",
+  "version": "2.0.0",
+  "description": "Монітор аварійних відключень ДТЕК (Київська область, КРЕМ)",
   "type": "module",
   "main": "src/monitor.js",
   "scripts": {

@@ -1,0 +1,26 @@
+{
+  "targets": [
+    {
+      "id": "kaga-molodizhna",
+      "provider": "krem",
+      "city": "м. Кагарлик",
+      "street": "вул. Молодіжна",
+      "house": "14А",
+      "chats": [
+        { "chat_id": "-1002085477927" },
+        { "chat_id": "-1002476122936", "thread_id": 5474 }
+      ]
+    },
+    {
+      "id": "kaga-rosavska",
+      "provider": "krem",
+      "city": "м. Кагарлик",
+      "street": "вул. Росавська",
+      "house": "30",
+      "chats": [
+        { "chat_id": "-1002085477927" },
+        { "chat_id": "-1002476122936", "thread_id": 5474 }
+      ]
+    }
+  ]
+}
